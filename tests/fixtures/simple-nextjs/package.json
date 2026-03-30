@@ -1,0 +1,24 @@
+{
+  "name": "simple-nextjs-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@prisma/client": "^5.0.0",
+    "next-auth": "^4.24.0",
+    "stripe": "^14.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "prisma": "^5.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest"
+  }
+}

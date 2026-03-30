@@ -1,0 +1,29 @@
+node_modules/
+dist/
+coverage/
+.nyc_output/
+*.js.map
+*.d.ts.map
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# Test outputs
+qa-diagnosis.md
+qa-diagnosis.html
+
+# Build artifacts
+*.tsbuildinfo
