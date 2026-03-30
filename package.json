@@ -1,6 +1,6 @@
 {
   "name": "bugscout",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Runs real checks against your Next.js + Supabase app, finds bugs, auto-fixes them",
   "type": "module",
   "bin": {

@@ -10,6 +10,7 @@ const IGNORE_DIRS = new Set([
   'dist',
   'build',
   '.next',
+  '.next-e2e',       // playwright/e2e Next.js output
   '.nuxt',
   '__pycache__',
   '.pytest_cache',
@@ -18,6 +19,8 @@ const IGNORE_DIRS = new Set([
   '.nyc_output',
   '.turbo',
   '.cache',
+  '.claude',         // Claude Code local config — never application code
+  '.cursor',         // Cursor editor config
   'out',
   'target',
   '.gradle',

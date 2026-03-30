@@ -31,44 +31,62 @@ async function checkWebhookVerification(ctx: AppContext): Promise<CheckResult> {
   const start = Date.now();
   const findings: Finding[] = [];
 
-  // 1. Static analysis — does the webhook handler call stripe.webhooks.constructEvent?
+  // 1. Static analysis — does the webhook handler verify the incoming signature?
+  //    Recognises Stripe, Svix (Resend, Clerk, etc.), and generic HMAC patterns.
+  //    Also follows one level of imports so helpers in a separate lib/ file are counted.
   const webhookFiles = findWebhookFiles(ctx.rootDir);
+
+  // Known verification patterns across providers
+  const VERIFICATION_PATTERNS = [
+    // Stripe
+    /constructEvent|stripe\.webhooks/,
+    // Svix (used by Resend, Clerk, Lemon Squeezy, etc.)
+    /svix|Webhook\.verify|wh\.verify|new Webhook\(/,
+    // Generic HMAC / signature helpers
+    /verifySignature|verifyWebhook|validateWebhook|checkSignature/,
+    /createHmac|timingSafeEqual/,
+    // AWS SNS, GitHub, etc.
+    /x-hub-signature|sha256=/,
+  ];
 
   for (const file of webhookFiles) {
     let content: string;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
     const rel = path.relative(ctx.rootDir, file);
 
-    const hasVerification =
-      /constructEvent|stripe\.webhooks\.constructEvent|stripe\.webhooks\.constructEventAsync/.test(content);
-    const hasRawBody =
-      /rawBody|req\.rawBody|text\(\)|buffer|getRawBody/.test(content);
+    // Skip test files — they deliberately test unverified payloads
+    if (/\.test\.|\.spec\.|__tests__/.test(rel)) continue;
+
+    // Check this file for verification
+    let hasVerification = VERIFICATION_PATTERNS.some((re) => re.test(content));
+
+    // Follow one level of local imports — the verification may live in a helper module
+    if (!hasVerification) {
+      const localImports = extractLocalImports(content, path.dirname(file), ctx.rootDir);
+      for (const importedPath of localImports) {
+        let importedContent: string;
+        try { importedContent = fs.readFileSync(importedPath, 'utf-8'); } catch { continue; }
+        if (VERIFICATION_PATTERNS.some((re) => re.test(importedContent))) {
+          hasVerification = true;
+          break;
+        }
+      }
+    }
 
     if (!hasVerification) {
+      // Determine which provider this webhook is for based on path/content
+      const provider = detectWebhookProvider(rel, content);
       findings.push({
-        id: makeId('payment', 'webhook-no-verify'),
+        id: makeId('payment', `webhook-no-verify-${rel}`),
         category: 'payment',
         severity: 'critical',
-        title: `Stripe webhook endpoint does not verify signatures`,
-        description: `${rel} appears to handle Stripe webhook events but does not call stripe.webhooks.constructEvent() to verify the signature. Any HTTP POST to this endpoint will be processed.`,
-        evidence: `No constructEvent call found in ${rel}`,
-        impact: `An attacker can forge Stripe webhook events to trigger subscription upgrades, payment confirmations, or any other webhook-driven action without actually paying.`,
-        fix: `Add signature verification to your webhook handler:\n\nconst sig = req.headers['stripe-signature'];\nconst event = stripe.webhooks.constructEvent(\n  rawBody,\n  sig,\n  process.env.STRIPE_WEBHOOK_SECRET\n);\n// Then process event.type`,
-        file: rel,
-        autoFixable: false,
-        checkName: name,
-        timestamp: new Date().toISOString(),
-      });
-    } else if (!hasRawBody) {
-      findings.push({
-        id: makeId('payment', 'webhook-parsed-body'),
-        category: 'payment',
-        severity: 'high',
-        title: `Stripe webhook may fail signature verification (using parsed body instead of raw)`,
-        description: `${rel} calls constructEvent but may be passing a parsed JSON body instead of the raw request body string. Stripe signature verification requires the exact raw bytes.`,
-        evidence: `constructEvent called but no rawBody/text()/buffer pattern found in ${rel}`,
-        impact: `Webhook verification will throw errors for every real Stripe event, breaking payment flows. Or it silently accepts all events if errors are swallowed.`,
-        fix: `In Next.js App Router, read the raw body:\n\nconst rawBody = await req.text();\nconst event = stripe.webhooks.constructEvent(rawBody, sig, secret);`,
+        title: `${provider} webhook endpoint does not verify signatures`,
+        description: `${rel} handles ${provider} webhook events but no signature verification was found in this file or its local imports. Any POST to this endpoint will be processed.`,
+        evidence: `No signature verification pattern found in ${rel} or its local imports`,
+        impact: `An attacker can forge ${provider} webhook events to trigger subscription upgrades, payment confirmations, or any other webhook-driven action.`,
+        fix: provider === 'Stripe'
+          ? `const sig = req.headers['stripe-signature'];\nconst event = stripe.webhooks.constructEvent(await req.text(), sig, process.env.STRIPE_WEBHOOK_SECRET);`
+          : `Use your provider's webhook verification SDK. For Svix/Resend:\nimport { Webhook } from 'svix';\nconst wh = new Webhook(process.env.WEBHOOK_SECRET);\nconst evt = wh.verify(rawBody, headers);`,
         file: rel,
         autoFixable: false,
         checkName: name,
@@ -77,33 +95,37 @@ async function checkWebhookVerification(ctx: AppContext): Promise<CheckResult> {
     }
   }
 
-  // 2. Live test — POST fake event to webhook endpoint
-  const webhookRoutes = ['/api/webhooks/stripe', '/api/stripe/webhook', '/api/webhook'];
-  for (const route of webhookRoutes) {
+  // 2. Live test — POST unsigned payload to known Stripe-specific routes only.
+  //    We only flag routes that are explicitly named for Stripe to avoid false
+  //    positives on Resend, GitHub, or other webhook routes.
+  const stripeRoutes = ['/api/webhooks/stripe', '/api/stripe/webhook', '/api/stripe'];
+  for (const route of stripeRoutes) {
     const url = `${ctx.appUrl}${route}`;
     try {
       const resp = await http.post(url, { type: 'checkout.session.completed', data: { object: {} } }, {
-        headers: { 'content-type': 'application/json' }, // no stripe-signature
+        headers: { 'content-type': 'application/json' }, // no stripe-signature header
         timeoutMs: 5000,
       });
 
-      if (resp.ok) {
+      // 200 with no signature header = unsigned events accepted
+      // 400/401/403 = properly rejecting unsigned requests (good)
+      if (resp.status === 200) {
         findings.push({
           id: makeId('payment', 'webhook-accepts-unsigned'),
           category: 'payment',
           severity: 'critical',
-          title: `Webhook endpoint accepts unsigned Stripe events`,
-          description: `POST ${route} returned HTTP ${resp.status} for a fake Stripe event with no stripe-signature header. The endpoint is processing events without verifying they came from Stripe.`,
+          title: `Stripe webhook endpoint accepts requests with no signature`,
+          description: `POST ${route} returned HTTP 200 for a fake Stripe event sent with no stripe-signature header. The endpoint is not rejecting unsigned requests.`,
           evidence: `POST ${url} (no stripe-signature) → HTTP ${resp.status}`,
           impact: `Anyone can POST fake payment success events to trigger subscription upgrades or fulfillment without paying.`,
-          fix: `Verify the stripe-signature header using stripe.webhooks.constructEvent() and return 400 if verification fails.`,
+          fix: `Verify the stripe-signature header and return 400 if missing or invalid:\nconst sig = req.headers.get('stripe-signature');\nif (!sig) return Response.json({ error: 'Missing signature' }, { status: 400 });`,
           autoFixable: false,
           checkName: name,
           timestamp: new Date().toISOString(),
         });
         break;
       }
-    } catch { /* skip */ }
+    } catch { /* route doesn't exist — skip */ }
   }
 
   return { name, category: 'payment', status: findings.length > 0 ? 'failed' : 'passed', findings, duration: Date.now() - start };
@@ -232,6 +254,33 @@ async function checkWebhookEndpointExposure(ctx: AppContext): Promise<CheckResul
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function detectWebhookProvider(relPath: string, content: string): string {
+  if (/stripe/i.test(relPath) || /stripe/i.test(content)) return 'Stripe';
+  if (/resend/i.test(relPath) || /resend/i.test(content)) return 'Resend';
+  if (/clerk/i.test(relPath) || /clerk/i.test(content)) return 'Clerk';
+  if (/svix/i.test(content)) return 'Svix';
+  if (/github/i.test(relPath)) return 'GitHub';
+  if (/lemon/i.test(relPath) || /lemon.?squeezy/i.test(content)) return 'LemonSqueezy';
+  return 'Webhook';
+}
+
+function extractLocalImports(content: string, fileDir: string, rootDir: string): string[] {
+  const results: string[] = [];
+  const importRe = /from\s+['"](\.[^'"]+)['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = importRe.exec(content)) !== null) {
+    const importPath = m[1];
+    for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
+      const resolved = path.resolve(fileDir, importPath + ext);
+      if (fs.existsSync(resolved) && resolved.startsWith(rootDir)) {
+        results.push(resolved);
+        break;
+      }
+    }
+  }
+  return results;
+}
 
 function findWebhookFiles(rootDir: string): string[] {
   const results: string[] = [];

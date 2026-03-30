@@ -34,10 +34,11 @@ async function checkHardcodedSecrets(ctx: AppContext): Promise<CheckResult> {
 
   for (const file of sourceFiles) {
     const rel = path.relative(ctx.rootDir, file);
-    // Skip .env files (those are expected to have secrets but shouldn't be in git)
+    // Skip .env files (expected to have secrets, gitignore is the right check)
     if (rel.startsWith('.env')) continue;
-    // Skip test fixtures and example files
-    if (/\.(example|sample|test|spec)\.|__fixtures__|__mocks__/.test(rel)) continue;
+    // Skip test files, fixtures, mocks, and generated/tool directories
+    if (/\.(test|spec)\.[tj]sx?$|__tests__|__fixtures__|__mocks__/.test(rel)) continue;
+    if (/^\.next-e2e\/|^\.claude\/|^\.cursor\/|^playwright-report\/|^test-results\//.test(rel)) continue;
 
     let content: string;
     try { content = fs.readFileSync(file, 'utf-8'); } catch { continue; }
