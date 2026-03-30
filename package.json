@@ -4,7 +4,7 @@
   "description": "Runs real checks against your Next.js + Supabase app, finds bugs, auto-fixes them",
   "type": "module",
   "bin": {
-    "bugscout": "./dist/bin/qa-agent.js"
+    "bugscout": "dist/bin/qa-agent.js"
   },
   "files": [
     "dist/",
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/BassamAA/qa-agent.git"
+    "url": "git+https://github.com/BassamAA/qa-agent.git"
   },
   "homepage": "https://github.com/BassamAA/qa-agent#readme",
   "bugs": {
@@ -50,6 +50,17 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["qa", "testing", "ai", "cli", "nextjs", "supabase", "security", "typescript", "code-analysis", "bug-finder"],
+  "keywords": [
+    "qa",
+    "testing",
+    "ai",
+    "cli",
+    "nextjs",
+    "supabase",
+    "security",
+    "typescript",
+    "code-analysis",
+    "bug-finder"
+  ],
   "license": "MIT"
 }
