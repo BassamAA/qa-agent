@@ -1,12 +1,12 @@
-# qa-agent
+# bugscout
 
 **An intelligent QA agent that actually runs against your app, finds real bugs, and fixes them.**
 
-Not a linter. Not a static analyzer. qa-agent spins up your Next.js app, hits your API endpoints without auth tokens, queries your Supabase tables as an anonymous user, fires malformed payloads at your routes, checks if your Stripe webhook verifies signatures — and then tells you exactly what's broken and how to fix it.
+Not a linter. Not a static analyzer. bugscout spins up your Next.js app, hits your API endpoints without auth tokens, queries your Supabase tables as an anonymous user, fires malformed payloads at your routes, checks if your Stripe webhook verifies signatures — and then tells you exactly what's broken and how to fix it.
 
 ```
   ╔═══════════════════════╗
-  ║  qa-agent v1.0.0     ║
+  ║  bugscout v1.0.0     ║
   ╚═══════════════════════╝
 
   Health Score: ████████████░░░░░░░░ 62/100
@@ -71,9 +71,9 @@ Not a linter. Not a static analyzer. qa-agent spins up your Next.js app, hits yo
 ## Install
 
 ```bash
-npm install -g qa-agent
-# or run directly
-npx qa-agent run .
+npm install -g bugscout
+# or run directly without installing
+npx bugscout run .
 ```
 
 **Requirements:** Node.js 18+
@@ -84,51 +84,51 @@ npx qa-agent run .
 
 ### Diagnose your app
 ```bash
-npx qa-agent run .
+npx bugscout run .
 ```
 Starts your app, runs all checks, writes `qa-diagnosis.md`.
 
 ```bash
-npx qa-agent run . --url https://your-staging-url.com
+npx bugscout run . --url https://your-staging-url.com
 ```
 Skip the local build — run against an already-running app.
 
 ### Auto-fix issues
 ```bash
-npx qa-agent fix .
+npx bugscout fix .
 ```
 Runs diagnosis, then for each auto-fixable issue shows the diff and asks for confirmation. Verifies the build still passes after each fix. Commits each fix with a descriptive message.
 
 ```bash
-npx qa-agent fix . --yes     # skip confirmation prompts
-npx qa-agent fix . --dry     # show diffs only, don't apply
-npx qa-agent fix . --verbose # show diffs + apply
+npx bugscout fix . --yes     # skip confirmation prompts
+npx bugscout fix . --dry     # show diffs only, don't apply
+npx bugscout fix . --verbose # show diffs + apply
 ```
 
 ### Static scan (fast, no LLM)
 ```bash
-npx qa-agent scan .
+npx bugscout scan .
 ```
 No app startup, no API calls. Just file analysis, stack detection, risk scoring. Completes in seconds.
 
 ### AI test strategy
 ```bash
-npx qa-agent generate .
-npx qa-agent generate . --provider openai --model gpt-4o
-npx qa-agent generate . --goal "focus on auth and payment flows"
+npx bugscout generate .
+npx bugscout generate . --provider openai --model gpt-4o
+npx bugscout generate . --goal "focus on auth and payment flows"
 ```
 Analyzes your codebase with Claude or GPT-4 and produces a prioritized test strategy.
 
 ### Watch mode (dev)
 ```bash
-npx qa-agent watch .
+npx bugscout watch .
 ```
 Re-runs relevant checks on every file save. Like ESLint but for real security issues.
 
 ### Generate report only
 ```bash
-npx qa-agent report .
-npx qa-agent report . --output ./docs/qa-report.md
+npx bugscout report .
+npx bugscout report . --output ./docs/qa-report.md
 ```
 
 ---
@@ -155,7 +155,7 @@ with no authentication token.
 💥 Impact: Any unauthenticated user can retrieve data from /api/users.
 🔧 Fix: Add auth middleware to the route handler...
 
-> ✨ Auto-fixable — run `npx qa-agent fix .` to apply this fix
+> ✨ Auto-fixable — run `npx bugscout fix .` to apply this fix
 
 ...
 
@@ -184,7 +184,7 @@ with no authentication token.
 
 ## Auto-fixable issues
 
-When qa-agent can safely fix an issue, it generates and applies the code change, verifies the build still passes, then commits:
+When bugscout can safely fix an issue, it generates and applies the code change, verifies the build still passes, then commits:
 
 | Fix | What it does |
 |-----|-------------|
@@ -213,11 +213,11 @@ Set your API key in the environment:
 ```bash
 # Claude (default — recommended)
 export ANTHROPIC_API_KEY=sk-ant-...
-npx qa-agent generate .
+npx bugscout generate .
 
 # OpenAI
 export OPENAI_API_KEY=sk-...
-npx qa-agent generate . --provider openai
+npx bugscout generate . --provider openai
 ```
 
 For the `run` and `fix` commands, no API key is needed — all checks are deterministic.
@@ -226,7 +226,7 @@ For the `run` and `fix` commands, no API key is needed — all checks are determ
 
 ## Target stack
 
-qa-agent is purpose-built for the modern TypeScript/Next.js stack:
+bugscout is purpose-built for the modern TypeScript/Next.js stack:
 
 - **Next.js** 13/14/15 (App Router)
 - **Supabase** — Auth, Database, RLS, Storage
@@ -243,7 +243,7 @@ The scanner also handles Python (Django/Flask/FastAPI), Ruby (Rails), Go (Gin/Ec
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                       qa-agent run .                     │
+│                       bugscout run .                     │
 └──────────────────────────┬──────────────────────────────┘
                            │
           ┌────────────────▼────────────────┐
@@ -270,13 +270,13 @@ The scanner also handles Python (Django/Flask/FastAPI), Ruby (Rails), Go (Gin/Ec
           └────────────────┬────────────────┘
                            │
           ┌────────────────▼────────────────┐
-          │         Fixer (Phase 4)          │  ← qa-agent fix
+          │         Fixer (Phase 4)          │  ← bugscout fix
           │  Show diff → confirm → apply     │
           │  Verify build → git commit       │
           └─────────────────────────────────┘
 ```
 
-**The checks run against the real app.** Not static guesses. qa-agent:
+**The checks run against the real app.** Not static guesses. bugscout:
 1. Starts your Next.js app on a free port (`npm run build && npm start`)
 2. Creates temporary Supabase test users, gets real auth tokens
 3. Fires real HTTP requests to your real endpoints
@@ -291,7 +291,7 @@ Add to your GitHub Actions workflow:
 
 ```yaml
 - name: QA Diagnosis
-  run: npx qa-agent run . --json > qa-result.json
+  run: npx bugscout run . --json > qa-result.json
   env:
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -363,7 +363,7 @@ Issues and PRs are welcome.
 
 ```bash
 git clone https://github.com/BassamAA/qa-agent
-cd qa-agent
+cd qa-agent  # (the repo is still called qa-agent on GitHub)
 npm install
 npm test          # 49 tests
 npm run build     # compile TypeScript

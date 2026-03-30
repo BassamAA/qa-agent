@@ -1,10 +1,10 @@
 {
-  "name": "qa-agent",
+  "name": "bugscout",
   "version": "1.0.0",
-  "description": "Intelligent QA agent — runs real checks against your Next.js + Supabase app, finds bugs, auto-fixes them",
+  "description": "Runs real checks against your Next.js + Supabase app, finds bugs, auto-fixes them",
   "type": "module",
   "bin": {
-    "qa-agent": "./dist/bin/qa-agent.js"
+    "bugscout": "./dist/bin/qa-agent.js"
   },
   "files": [
     "dist/",
