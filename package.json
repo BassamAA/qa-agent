@@ -1,11 +1,16 @@
 {
   "name": "qa-agent",
   "version": "1.0.0",
-  "description": "Intelligent QA agent that analyzes any codebase and generates an optimal test suite",
+  "description": "Intelligent QA agent — runs real checks against your Next.js + Supabase app, finds bugs, auto-fixes them",
   "type": "module",
   "bin": {
     "qa-agent": "./dist/bin/qa-agent.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node --esm src/bin/qa-agent.ts",
@@ -14,7 +19,15 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && npm run test:run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BassamAA/qa-agent.git"
+  },
+  "homepage": "https://github.com/BassamAA/qa-agent#readme",
+  "bugs": {
+    "url": "https://github.com/BassamAA/qa-agent/issues"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.36.3",
@@ -37,6 +50,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["qa", "testing", "ai", "cli", "code-analysis"],
+  "keywords": ["qa", "testing", "ai", "cli", "nextjs", "supabase", "security", "typescript", "code-analysis", "bug-finder"],
   "license": "MIT"
 }
