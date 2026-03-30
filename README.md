@@ -68,6 +68,16 @@ Not a linter. Not a static analyzer. bugscout spins up your Next.js app, hits yo
 
 ---
 
+## ⚠️ Important: run this on YOUR app only
+
+bugscout fires real HTTP requests including SQL injection strings, XSS payloads, and rapid-fire requests at the target app. **Only run it against apps you own or have explicit written permission to test.**
+
+- Use staging/dev environments, not production
+- Never point `--url` at someone else's app
+- The `run` command executes `npm run build && npm start` — only run on codebases you trust
+
+---
+
 ## Install
 
 ```bash

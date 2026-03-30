@@ -15,7 +15,7 @@ import { runFixer } from '../fixer/index.js';
 const program = new Command();
 
 program
-  .name('qa-agent')
+  .name('bugscout')
   .description('Intelligent QA agent — scans codebases, finds bugs, fixes them')
   .version('1.0.0');
 
@@ -50,6 +50,9 @@ program
     if (!opts.json) {
       printBanner();
       console.log(chalk.gray(`  Scanning: ${rootDir}\n`));
+      if (opts.url) {
+        console.log(chalk.yellow(`  ⚠  Only run bugscout against apps you own or have explicit permission to test.\n`));
+      }
     }
 
     const skipCategories = opts.skip

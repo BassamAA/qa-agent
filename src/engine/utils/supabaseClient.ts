@@ -79,7 +79,12 @@ export async function deleteTestUser(ctx: AppContext, userId: string): Promise<v
   try {
     await serviceClient.auth.admin.deleteUser(userId);
   } catch (err) {
-    console.error('[supabase] Failed to delete test user:', err);
+    // Warn loudly — orphaned test users in the DB are a real problem
+    process.stderr.write(
+      `\n[bugscout] WARNING: Failed to delete test user ${userId} from Supabase. ` +
+      `Please delete it manually in your Supabase dashboard (Authentication → Users).\n` +
+      `Error: ${err instanceof Error ? err.message : String(err)}\n\n`
+    );
   }
 }
 
